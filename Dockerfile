@@ -29,8 +29,9 @@ RUN pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.py
 # ---- Clone TRELLIS.2 (provides the `trellis2` package + the o-voxel source) ----
 # Pin a commit for reproducibility; bump when you want to track upstream.
 ARG TRELLIS_REF=main
-RUN git clone https://github.com/microsoft/TRELLIS.2.git /app/TRELLIS.2 \
-    && cd /app/TRELLIS.2 && git checkout ${TRELLIS_REF}
+RUN git clone --recurse-submodules https://github.com/microsoft/TRELLIS.2.git /app/TRELLIS.2 \
+    && cd /app/TRELLIS.2 && git checkout ${TRELLIS_REF} \
+    && git submodule update --init --recursive
 
 WORKDIR /app/TRELLIS.2
 
