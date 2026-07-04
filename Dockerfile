@@ -86,14 +86,29 @@ RUN pip install ./o-voxel --no-build-isolation \
 # ---- RunPod SDK + S3 upload deps ----
 RUN pip install runpod boto3 requests
 
+# ---- Pin transformers for DINOv3 compatibility (CRITICAL) ----
+# TRELLIS.2's DinoV3FeatureExtractor.extract_features (trellis2/modules/image_feature_extractor.py)
+# reaches into the DINOv3 model internals: it uses model.embeddings, model.rope_embeddings and
+# iterates `model.layer` DIRECTLY. transformers 5.x refactored DINOv3ViTModel to nest the encoder
+# under `.model` (the layers moved to model.model.layer), so the flat `.layer` attribute is gone:
+#     'DINOv3ViTModel' object has no attribute 'layer'
+# 4.56.0–4.57.1 keep the flat layout TRELLIS.2 was written against. Pin the last compatible (4.57.1).
+# NOTE: the base `transformers` above is left unpinned only because this line overrides it; keep this
+# RUN AFTER the CUDA-extension layers so re-pinning never busts those slow source compiles.
+RUN pip install "transformers==4.57.1"
+
 # ---- Worker code ----
 COPY handler.py /app/TRELLIS.2/handler.py
 COPY download_weights.py /app/TRELLIS.2/download_weights.py
 
-# ---- Optional: bake model weights into the image ----
-# Default 0 = do NOT bake (smaller/faster build; pair with a Network Volume for HF_HOME).
-# Set --build-arg BAKE_WEIGHTS=1 to snapshot weights at build time (image ~25-35GB).
-ARG BAKE_WEIGHTS=0
+# ---- Bake model weights into the image ----
+# Default 1 = bake the 16GB TRELLIS.2-4B snapshot at build time so cold starts do NOT
+# re-download it (image grows to ~30-35GB; build needs enough builder disk). The small
+# gated DINOv3 + BiRefNet models are NOT baked here (DINOv3 needs a build-time HF token);
+# they download once per cold worker via the endpoint's HF_TOKEN env var (~2GB, fast).
+# Set --build-arg BAKE_WEIGHTS=0 to skip baking (smaller/faster build, but every cold
+# start re-downloads the 16GB).
+ARG BAKE_WEIGHTS=1
 RUN if [ "$BAKE_WEIGHTS" = "1" ]; then python download_weights.py; fi
 
 CMD ["python", "-u", "/app/TRELLIS.2/handler.py"]
