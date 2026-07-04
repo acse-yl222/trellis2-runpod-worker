@@ -97,6 +97,16 @@ RUN pip install runpod boto3 requests
 # RUN AFTER the CUDA-extension layers so re-pinning never busts those slow source compiles.
 RUN pip install "transformers==4.57.1"
 
+# ---- Pillow: force ONE self-consistent build for webp GLB export (CRITICAL) ----
+# `pillow-simd || pillow` above + other deps pulling Pillow 11 leaves a MIXED PIL: an old
+# WebPImagePlugin.py that references _webp.HAVE_WEBPANIM next to a Pillow-11 _webp C-ext that
+# dropped it, so glb.export(extension_webp=True) dies with:
+#     module 'PIL._webp' has no attribute 'HAVE_WEBPANIM'
+# Wipe every Pillow variant and reinstall a single clean 10.4.0 (plugin + C-ext both expose
+# HAVE_WEBPANIM). Late layer -> does not bust the CUDA-extension cache.
+RUN pip uninstall -y Pillow Pillow-SIMD pillow-simd pillow 2>/dev/null; \
+    pip install --force-reinstall --no-cache-dir "Pillow==10.4.0"
+
 # ---- Worker code ----
 COPY handler.py /app/TRELLIS.2/handler.py
 COPY download_weights.py /app/TRELLIS.2/download_weights.py
