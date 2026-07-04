@@ -18,7 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3.10 python3.10-dev python3-pip \
         libjpeg-dev libgl1 libglib2.0-0 libegl1 libgles2 \
     && ln -sf /usr/bin/python3.10 /usr/bin/python \
-    && python -m pip install --upgrade pip \
+    # setuptools>=64 is REQUIRED so pip honors PEP 621 pyproject.toml metadata.
+    # nvdiffrast v0.4.0 declares its package list ONLY in pyproject.toml; the stock
+    # Ubuntu setuptools (~59) ignores it and installs the CUDA ext without the
+    # `nvdiffrast` python package -> runtime "No module named 'nvdiffrast'".
+    && python -m pip install --upgrade "pip" "setuptools>=70" "wheel" \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
