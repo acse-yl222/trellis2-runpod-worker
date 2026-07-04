@@ -51,9 +51,14 @@ RUN pip install pillow-simd || pip install pillow
 RUN pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.3/flash_attn-2.7.3+cu12torch2.6cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
 
 # ---- CUDA extensions (compiled here on RunPod's amd64 builder) ----
+# Verify each import in the SAME layer it is installed, so a silently-broken install
+# fails the BUILD instead of shipping a worker that dies on the first job. Editing
+# these RUN lines also busts any poisoned layer cache for nvdiffrast and everything
+# after it -- the "No module named 'nvdiffrast'" job crash came from a stale cached layer.
 RUN mkdir -p /tmp/extensions \
     && git clone -b v0.4.0 https://github.com/NVlabs/nvdiffrast.git /tmp/extensions/nvdiffrast \
-    && pip install /tmp/extensions/nvdiffrast --no-build-isolation
+    && pip install /tmp/extensions/nvdiffrast --no-build-isolation \
+    && python -c "import nvdiffrast.torch; print('[verify] nvdiffrast OK')"
 
 RUN git clone -b renderutils https://github.com/JeffreyXiang/nvdiffrec.git /tmp/extensions/nvdiffrec \
     && pip install /tmp/extensions/nvdiffrec --no-build-isolation
@@ -65,7 +70,10 @@ RUN git clone --recursive https://github.com/JeffreyXiang/FlexGEMM.git /tmp/exte
     && pip install /tmp/extensions/FlexGEMM --no-build-isolation
 
 # ---- o-voxel (lives inside the TRELLIS.2 repo) ----
-RUN pip install ./o-voxel --no-build-isolation
+# Final gate: reproduce the exact runtime import chain (o_voxel -> nvdiffrast.torch)
+# at build time. If this line passes, the worker cannot hit the missing-module crash.
+RUN pip install ./o-voxel --no-build-isolation \
+    && python -c "import nvdiffrast.torch, o_voxel; print('[verify] o_voxel + nvdiffrast import OK')"
 
 # ---- RunPod SDK + S3 upload deps ----
 RUN pip install runpod boto3 requests
