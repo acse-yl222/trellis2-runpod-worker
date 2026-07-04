@@ -27,9 +27,12 @@ from PIL import Image
 import torch
 import runpod
 
-# TRELLIS.2 imports (repo root is the cwd -> `trellis2` is importable)
-from trellis2.pipelines import Trellis2ImageTo3DPipeline
-import o_voxel
+# NOTE: trellis2 / o_voxel are imported LAZILY inside _load_pipeline() (not at module
+# top). If a heavy import fails, we want it to surface as a job error in the response
+# rather than crash the worker at startup (which shows up as "unhealthy workers" with
+# only "exit code 1" and no traceback in the logs).
+Trellis2ImageTo3DPipeline = None
+o_voxel = None
 
 # ----------------------------------------------------------------------------
 # Config
@@ -53,7 +56,13 @@ _pipeline = None
 
 
 def _load_pipeline():
-    global _pipeline
+    global _pipeline, Trellis2ImageTo3DPipeline, o_voxel
+    if Trellis2ImageTo3DPipeline is None:
+        print("[init] importing trellis2 / o_voxel ...", flush=True)
+        from trellis2.pipelines import Trellis2ImageTo3DPipeline as _P
+        import o_voxel as _OV
+        Trellis2ImageTo3DPipeline = _P
+        o_voxel = _OV
     if _pipeline is None:
         print(f"[init] loading pipeline {MODEL_ID} ...", flush=True)
         t0 = time.time()
