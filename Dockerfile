@@ -44,8 +44,10 @@ RUN pip install \
 # pillow-simd is faster but often fails to build; fall back to plain pillow.
 RUN pip install pillow-simd || pip install pillow
 
-# ---- flash-attn (prebuilt wheel for torch2.6/cu124/py310 -> no source compile) ----
-RUN pip install flash-attn==2.7.3 --no-build-isolation
+# ---- flash-attn (install the exact prebuilt wheel -> NO source compile) ----
+# PyPI has no matching wheel, so pip would compile from source and blow past the
+# builder's CPU time limit. Pin the official cu12/torch2.6/py310/abiFALSE wheel.
+RUN pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.3/flash_attn-2.7.3+cu12torch2.6cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
 
 # ---- CUDA extensions (compiled here on RunPod's amd64 builder) ----
 RUN mkdir -p /tmp/extensions \
