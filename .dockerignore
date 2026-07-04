@@ -1,0 +1,8 @@
+.git
+__pycache__/
+*.pyc
+*.glb
+out*.glb
+client.py
+README.md
+BUILD_GUIDE.md

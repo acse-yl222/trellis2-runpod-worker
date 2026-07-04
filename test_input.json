@@ -1,0 +1,10 @@
+{
+  "input": {
+    "image_url": "https://raw.githubusercontent.com/microsoft/TRELLIS.2/main/assets/example_image/T.png",
+    "resolution": "1024",
+    "seed": 0,
+    "preprocess": true,
+    "decimation_target": 500000,
+    "texture_size": 2048
+  }
+}
